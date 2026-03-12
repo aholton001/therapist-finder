@@ -1,0 +1,16 @@
+# Env
+.env
+*.env.local
+
+# Node
+web/node_modules/
+web/.next/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+scraper/.venv/
+
+# DB
+pgdata/

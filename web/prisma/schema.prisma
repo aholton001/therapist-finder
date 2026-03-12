@@ -1,0 +1,44 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [pgvector(map: "vector")]
+}
+
+model Therapist {
+  id           String   @id @default(cuid())
+  ptProfileUrl String   @unique
+  name         String
+  credentials  String?
+  bio          String?
+  photoUrl     String?
+  city         String?
+  state        String?
+  zipCode      String?
+  lat          Float?
+  lng          Float?
+  specialties  String[]
+  issues       String[]
+  therapyTypes String[]
+  insurance    String[]
+  telehealth   Boolean  @default(false)
+  inPerson     Boolean  @default(true)
+  scrapedAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([city, state])
+  @@index([zipCode])
+}
+
+model SearchLog {
+  id            String   @id @default(cuid())
+  rawQuery      String
+  enhancedQuery String?
+  location      String?
+  resultCount   Int
+  createdAt     DateTime @default(now())
+}
