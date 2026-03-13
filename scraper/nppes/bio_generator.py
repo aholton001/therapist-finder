@@ -61,7 +61,7 @@ def generate_bio(provider: dict) -> str:
     taxonomies = provider.get("taxonomies", [])
     primary = next((t for t in taxonomies if t.get("primary")), taxonomies[0] if taxonomies else {})
     primary_code = primary.get("code", "")
-    primary_desc = TAXONOMY_CODE_TO_DESC.get(primary_code, primary.get("desc", "mental health counseling").lower())
+    primary_desc = TAXONOMY_CODE_TO_DESC.get(primary_code, (primary.get("desc") or "mental health counseling").lower())
 
     other_descs = list({
         TAXONOMY_CODE_TO_DESC.get(t["code"], "")
