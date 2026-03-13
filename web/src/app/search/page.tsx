@@ -93,7 +93,7 @@ export default async function SearchPage({ searchParams }: Props) {
         ) : (
           <div className="flex flex-col gap-4">
             {results.map((t) => (
-              <TherapistCard key={t.id} therapist={t} />
+              <TherapistCard key={t.id} therapist={t} userQuery={query} />
             ))}
           </div>
         )}
