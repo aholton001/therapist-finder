@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import QuestionnaireForm from "./QuestionnaireForm";
-import type { QuestionnaireData } from "@/lib/types";
+import { questionnaireToQuery, type QuestionnaireData } from "@/lib/types";
 
 type Mode = "freeform" | "questionnaire";
 
@@ -13,51 +13,20 @@ export default function SearchForm() {
   const [location, setLocation] = useState("");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
-  async function handleFreeformSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
+  function submitSearch(q: string) {
     setLoading(true);
-
-    const res = await fetch("/api/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: "freeform", location, query }),
-    });
-
-    setLoading(false);
-
-    if (!res.ok) {
-      setError("Something went wrong. Please try again.");
-      return;
-    }
-
-    const data = await res.json();
-    const encoded = encodeURIComponent(JSON.stringify(data));
-    router.push(`/search?results=${encoded}`);
+    const params = new URLSearchParams({ location, query: q });
+    router.push(`/search?${params.toString()}`);
   }
 
-  async function handleQuestionnaireSubmit(questionnaire: QuestionnaireData) {
-    setError("");
-    setLoading(true);
+  function handleFreeformSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    submitSearch(query);
+  }
 
-    const res = await fetch("/api/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: "questionnaire", location, questionnaire }),
-    });
-
-    setLoading(false);
-
-    if (!res.ok) {
-      setError("Something went wrong. Please try again.");
-      return;
-    }
-
-    const data = await res.json();
-    const encoded = encodeURIComponent(JSON.stringify(data));
-    router.push(`/search?results=${encoded}`);
+  function handleQuestionnaireSubmit(questionnaire: QuestionnaireData) {
+    submitSearch(questionnaireToQuery(questionnaire));
   }
 
   return (
@@ -119,8 +88,6 @@ export default function SearchForm() {
             </p>
           </div>
 
-          {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
-
           <button
             type="submit"
             disabled={loading || !location || query.length < 10}
@@ -134,7 +101,7 @@ export default function SearchForm() {
           onSubmit={handleQuestionnaireSubmit}
           loading={loading}
           locationFilled={location.length >= 2}
-          error={error}
+          error=""
         />
       )}
     </div>

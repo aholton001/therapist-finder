@@ -2,8 +2,8 @@
 Therapist scraper entrypoint.
 
 Usage:
-  python main.py --state new-york --city new-york-city
-  python main.py --state california --city los-angeles --max-pages 20
+  python main.py --state ny --city new-york
+  python main.py --state ca --city los-angeles --max-pages 20
 """
 import asyncio
 import argparse
@@ -24,17 +24,18 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Popular US cities to seed the scraper
+# Format: (state_abbreviation, city_slug)
 DEFAULT_CITIES = [
-    ("new-york", "new-york-city"),
-    ("california", "los-angeles"),
-    ("illinois", "chicago"),
-    ("texas", "houston"),
-    ("arizona", "phoenix"),
-    ("pennsylvania", "philadelphia"),
-    ("texas", "san-antonio"),
-    ("california", "san-diego"),
-    ("texas", "dallas"),
-    ("california", "san-jose"),
+    ("ny", "new-york"),
+    ("ca", "los-angeles"),
+    ("il", "chicago"),
+    ("tx", "houston"),
+    ("az", "phoenix"),
+    ("pa", "philadelphia"),
+    ("tx", "san-antonio"),
+    ("ca", "san-diego"),
+    ("tx", "dallas"),
+    ("ca", "san-jose"),
 ]
 
 

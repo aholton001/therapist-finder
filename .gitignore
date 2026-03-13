@@ -14,3 +14,6 @@ scraper/.venv/
 
 # DB
 pgdata/
+scraper/.python-version
+scraper/debug_selectors.py
+.claude/settings.local.json

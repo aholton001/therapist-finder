@@ -8,80 +8,52 @@ logger = logging.getLogger(__name__)
 
 
 async def scrape_profile(context: BrowserContext, url: str) -> TherapistProfile | None:
-    """Scrape a single therapist profile page."""
     page = await context.new_page()
 
     try:
         success = await navigate_with_retry(
             page, url,
-            wait_selector=".profile-header, [data-testid='profile-header'], h1.profile-title, .profile-name",
+            wait_selector=".profile-title",
         )
         if not success:
             logger.warning(f"Failed to load profile: {url}")
             return None
 
-        # Expand "See more" sections
-        for btn_text in ["See More", "Read More", "Show More"]:
-            try:
-                btn = page.locator(f"button:has-text('{btn_text}')").first
-                if await btn.is_visible():
-                    await btn.click()
-                    await page.wait_for_timeout(500)
-            except Exception:
-                pass
-
-        # --- Extract fields ---
-
         # Name
-        name = await _text_from_selectors(page, [
-            "h1.profile-title", ".profile-name", "h1[itemprop='name']", "h1"
-        ])
+        name = await _text(".profile-title", page)
         if not name:
             logger.warning(f"No name found at {url}, skipping")
             return None
 
         # Credentials
-        credentials = await _text_from_selectors(page, [
-            ".profile-subtitle", ".profile-credentials", "[itemprop='description']"
-        ])
+        credentials = await _text(".profile-subtitle", page)
 
-        # Bio / About
-        bio = await _text_from_selectors(page, [
-            ".profile-bio", ".profile-statement", "[data-testid='profile-bio']",
-            ".about-me-section p", "#about-me",
-        ])
+        # Bio
+        bio = await _text(".personal-statement", page)
 
         # Photo
-        photo_url = await _attr_from_selectors(page, [
-            ".profile-image img", ".profile-photo img", "img.profile-picture",
-            "[itemprop='image']",
-        ], "src")
+        photo_url = await _attr(".profile-photo img, .profile-grid-photo img", "src", page)
 
-        # Location
-        location_text = await _text_from_selectors(page, [
-            ".profile-location", "[itemprop='address']", ".location",
-        ])
+        # Location — "New York, NY 10016"
+        location_text = await _text(".address-region", page) or await _text(".address-text", page) or await _text(".address-line", page)
         city, state, zip_code = _parse_location(location_text)
 
-        # Tags: specialties, issues, therapy types
-        specialties = await _extract_tag_list(page, [
-            "[data-testid='specialties']", ".profile-specialties", "#specialties",
-        ])
-        issues = await _extract_tag_list(page, [
-            "[data-testid='issues']", ".profile-issues", "#issues",
-        ])
-        therapy_types = await _extract_tag_list(page, [
-            "[data-testid='therapy-types']", ".profile-types", "#therapy-types",
-            ".modalities",
-        ])
-        insurance = await _extract_tag_list(page, [
-            "[data-testid='insurance']", ".profile-insurance", "#insurance",
-        ])
+        # Specialties
+        specialties = await _tag_list(".specialty-attributes-section .specialty, .specialty-attributes-section li", page)
+
+        # Issues
+        issues = await _tag_list(".attribute-subheading ~ .attributes li, .attributes-group li", page)
+
+        # Therapy types
+        therapy_types = await _tag_list(".treatment li, .modality li, [class*='treatment-orientation'] li", page)
+
+        # Insurance
+        insurance = await _tag_list(".insurance li", page)
 
         # Telehealth / in-person
         page_text = (await page.inner_text("body")).lower()
-        telehealth = "telehealth" in page_text or "online therapy" in page_text or "video" in page_text
-        in_person = "in-person" in page_text or "in person" in page_text or "office" in page_text
+        telehealth = "online" in page_text or "telehealth" in page_text
+        in_person = "in-person" in page_text or "in person" in page_text
 
         profile = TherapistProfile(
             pt_profile_url=url,
@@ -110,61 +82,50 @@ async def scrape_profile(context: BrowserContext, url: str) -> TherapistProfile 
         await page.close()
 
 
-async def _text_from_selectors(page, selectors: list[str]) -> str | None:
-    for selector in selectors:
-        try:
-            el = page.locator(selector).first
-            if await el.is_visible():
-                text = await el.inner_text()
-                if text.strip():
-                    return text.strip()
-        except Exception:
-            continue
+async def _text(selector: str, page) -> str | None:
+    try:
+        el = page.locator(selector).first
+        if await el.count() > 0:
+            text = await el.inner_text()
+            return text.strip() or None
+    except Exception:
+        pass
     return None
 
 
-async def _attr_from_selectors(page, selectors: list[str], attr: str) -> str | None:
-    for selector in selectors:
-        try:
-            el = page.locator(selector).first
-            if await el.is_visible():
-                val = await el.get_attribute(attr)
-                if val:
-                    return val
-        except Exception:
-            continue
+async def _attr(selector: str, attr: str, page) -> str | None:
+    try:
+        el = page.locator(selector).first
+        if await el.count() > 0:
+            val = await el.get_attribute(attr)
+            return val or None
+    except Exception:
+        pass
     return None
 
 
-async def _extract_tag_list(page, selectors: list[str]) -> list[str]:
-    for selector in selectors:
-        try:
-            container = page.locator(selector).first
-            if await container.is_visible():
-                items = await container.locator("li, .tag, span.item").all()
-                tags = []
-                for item in items:
-                    text = await item.inner_text()
-                    if text.strip():
-                        tags.append(text.strip())
-                if tags:
-                    return tags
-        except Exception:
-            continue
-    return []
+async def _tag_list(selector: str, page) -> list[str]:
+    try:
+        items = await page.locator(selector).all()
+        tags = []
+        for item in items:
+            text = (await item.inner_text()).strip()
+            if text:
+                tags.append(text)
+        return tags
+    except Exception:
+        return []
 
 
 def _parse_location(location_text: str | None) -> tuple[str | None, str | None, str | None]:
     if not location_text:
         return None, None, None
 
-    # Try to find zip code
     zip_match = re.search(r"\b(\d{5})\b", location_text)
     zip_code = zip_match.group(1) if zip_match else None
 
-    # Try "City, ST" pattern
-    # e.g. "New York, NY 10001" or "Brooklyn, New York"
-    city_state = re.search(r"([A-Za-z\s]+),\s*([A-Z]{2})", location_text)
+    # "New York, NY 10016"
+    city_state = re.search(r"([A-Za-z\s\.]+),\s*([A-Z]{2})", location_text)
     if city_state:
         return city_state.group(1).strip(), city_state.group(2).strip(), zip_code
 

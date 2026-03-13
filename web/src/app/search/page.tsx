@@ -1,36 +1,39 @@
-"use client";
-
-import { useSearchParams, useRouter } from "next/navigation";
-import { Suspense } from "react";
+import Link from "next/link";
 import TherapistCard from "@/components/TherapistCard";
-import type { TherapistResult } from "@/lib/search";
+import { searchTherapists } from "@/lib/search";
 
-function SearchResults() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
+type Props = {
+  searchParams: Promise<{ location?: string; query?: string }>;
+};
 
-  let results: TherapistResult[] = [];
-  let enhancedQuery = "";
-  let rawQuery = "";
+export default async function SearchPage({ searchParams }: Props) {
+  const { location, query } = await searchParams;
 
-  try {
-    const encoded = searchParams.get("results");
-    if (encoded) {
-      const data = JSON.parse(decodeURIComponent(encoded));
-      results = data.results ?? [];
-      enhancedQuery = data.enhancedQuery ?? "";
-      rawQuery = data.query ?? "";
-    }
-  } catch {
-    // invalid params, show empty state
+  if (!location || !query) {
+    return (
+      <main className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-500 mb-4">No search parameters provided.</p>
+          <Link href="/" className="text-indigo-600 hover:underline">
+            Start a new search
+          </Link>
+        </div>
+      </main>
+    );
   }
+
+  const { results, enhancedQuery } = await searchTherapists({
+    location,
+    query,
+    useEnhancement: true,
+  });
 
   return (
     <main className="min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
-          <button
-            onClick={() => router.push("/")}
+          <Link
+            href="/"
             className="text-indigo-600 hover:text-indigo-800 font-medium text-sm flex items-center gap-1.5"
           >
             <svg
@@ -47,20 +50,21 @@ function SearchResults() {
               />
             </svg>
             New search
-          </button>
+          </Link>
           <div>
             <h1 className="text-xl font-semibold text-gray-900">
               {results.length} therapist{results.length !== 1 ? "s" : ""} found
+              in {location}
             </h1>
-            {rawQuery && (
+            {query && (
               <p className="text-sm text-gray-500 truncate max-w-lg">
-                {rawQuery.length > 80 ? rawQuery.slice(0, 80) + "…" : rawQuery}
+                {query.length > 80 ? query.slice(0, 80) + "…" : query}
               </p>
             )}
           </div>
         </div>
 
-        {enhancedQuery && enhancedQuery !== rawQuery && (
+        {enhancedQuery && enhancedQuery !== query && (
           <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-6">
             <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">
               How we understood your request
@@ -87,13 +91,5 @@ function SearchResults() {
         )}
       </div>
     </main>
-  );
-}
-
-export default function SearchPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400">Loading...</div>}>
-      <SearchResults />
-    </Suspense>
   );
 }

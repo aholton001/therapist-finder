@@ -16,8 +16,8 @@ async def get_profile_urls_for_city(
     """
     Collect therapist profile URLs for a given city.
 
-    state_slug: e.g. "new-york"
-    city_slug:  e.g. "new-york-city" or "brooklyn"
+    state_slug: 2-letter state abbreviation e.g. "ny", "ca", "il"
+    city_slug:  city slug e.g. "new-york", "los-angeles"
     """
     profile_urls: list[str] = []
     page = await context.new_page()
@@ -38,7 +38,7 @@ async def get_profile_urls_for_city(
 
         success = await navigate_with_retry(
             page, url,
-            wait_selector=".results-row, [data-testid='results-container'], .profile-listing",
+            wait_selector=".results-row",
         )
 
         if not success:
@@ -54,20 +54,20 @@ async def get_profile_urls_for_city(
         except Exception:
             pass
 
-        # Extract profile URLs
-        links = await page.locator("a[href*='/us/therapists/']").all()
+        # Extract profile URLs from result cards only
+        links = await page.locator(".results-row a[href*='/us/therapists/']").all()
         page_urls = []
         for link in links:
             href = await link.get_attribute("href")
-            if href and "/us/therapists/" in href:
-                # Only individual profile pages (not listing pages)
-                # Profile URLs have a numeric ID at the end e.g. /us/therapists/john-doe/123456
-                parts = href.rstrip("/").split("/")
-                if len(parts) >= 6 and parts[-1].isdigit():
-                    full_url = PT_BASE + href if href.startswith("/") else href
-                    # Strip query params
-                    full_url = full_url.split("?")[0]
-                    page_urls.append(full_url)
+            if not href:
+                continue
+            # Individual profile URLs end in a numeric ID
+            # e.g. /us/therapists/fran-v-dillon-new-york-ny/83599
+            parts = href.rstrip("/").split("/")
+            if len(parts) >= 2 and parts[-1].isdigit():
+                full_url = PT_BASE + href if href.startswith("/") else href
+                full_url = full_url.split("?")[0]
+                page_urls.append(full_url)
 
         new_urls = [u for u in page_urls if u not in profile_urls]
         profile_urls.extend(new_urls)
