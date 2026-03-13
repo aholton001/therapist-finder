@@ -16,7 +16,8 @@ export default function SearchForm() {
 
   function submitSearch(q: string) {
     setLoading(true);
-    const params = new URLSearchParams({ location, query: q });
+    sessionStorage.setItem("search_query", q);
+    const params = new URLSearchParams({ location });
     router.push(`/search?${params.toString()}`);
   }
 

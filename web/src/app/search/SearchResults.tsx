@@ -10,7 +10,6 @@ import type { TherapistResult } from "@/lib/search";
 
 type Props = {
   location: string;
-  query: string;
   insurance?: string;
   format?: string;
 };
@@ -24,12 +23,17 @@ type ScrapePhase =
   | { phase: "not_found" }
   | { phase: "error"; message: string };
 
-export default function SearchResults({ location, query, insurance, format }: Props) {
+export default function SearchResults({ location, insurance, format }: Props) {
+  const [query, setQuery] = useState<string | null>(null);
   const [results, setResults] = useState<TherapistResult[] | null>(null);
   const [insuranceOptions, setInsuranceOptions] = useState<string[]>([]);
   const [enhancedQuery, setEnhancedQuery] = useState<string>("");
   const [scrapePhase, setScrapePhase] = useState<ScrapePhase>({ phase: "idle" });
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    setQuery(sessionStorage.getItem("search_query") ?? "");
+  }, []);
 
   const sessionFormat =
     format === "in-person" || format === "telehealth" ? format : undefined;
@@ -59,6 +63,7 @@ export default function SearchResults({ location, query, insurance, format }: Pr
   }, [location]);
 
   useEffect(() => {
+    if (query === null) return;
     let cancelled = false;
 
     async function init() {
@@ -232,7 +237,7 @@ export default function SearchResults({ location, query, insurance, format }: Pr
         ) : (
           <div className="flex flex-col gap-4">
             {results!.map((t) => (
-              <TherapistCard key={t.id} therapist={t} userQuery={query} />
+              <TherapistCard key={t.id} therapist={t} userQuery={query ?? ""} />
             ))}
           </div>
         )}

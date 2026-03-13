@@ -4,16 +4,15 @@ import SearchResults from "./SearchResults";
 type Props = {
   searchParams: Promise<{
     location?: string;
-    query?: string;
     insurance?: string;
     format?: string;
   }>;
 };
 
 export default async function SearchPage({ searchParams }: Props) {
-  const { location, query, insurance, format } = await searchParams;
+  const { location, insurance, format } = await searchParams;
 
-  if (!location || !query) {
+  if (!location) {
     return (
       <main className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -29,7 +28,6 @@ export default async function SearchPage({ searchParams }: Props) {
   return (
     <SearchResults
       location={location}
-      query={query}
       insurance={insurance}
       format={format}
     />
