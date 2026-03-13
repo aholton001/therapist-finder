@@ -1,0 +1,1 @@
+ALTER TABLE "Therapist" ADD COLUMN "source" TEXT NOT NULL DEFAULT 'pt';

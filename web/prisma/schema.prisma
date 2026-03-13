@@ -27,6 +27,7 @@ model Therapist {
   insurance    String[]
   telehealth   Boolean  @default(false)
   inPerson     Boolean  @default(true)
+  source       String   @default("pt")
   scrapedAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

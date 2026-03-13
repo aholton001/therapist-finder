@@ -69,13 +69,13 @@ async def _upsert_therapist(pool: asyncpg.Pool, profile: TherapistProfile, embed
                 id, "ptProfileUrl", name, credentials, bio, "photoUrl",
                 city, state, "zipCode", lat, lng,
                 specialties, issues, "therapyTypes", insurance,
-                telehealth, "inPerson", embedding,
+                telehealth, "inPerson", source, embedding,
                 "scrapedAt", "updatedAt"
             ) VALUES (
                 gen_random_uuid()::text, $1, $2, $3, $4, $5,
                 $6, $7, $8, $9, $10,
                 $11, $12, $13, $14,
-                $15, $16, $17::vector,
+                $15, $16, $17, $18::vector,
                 NOW(), NOW()
             )
             ON CONFLICT ("ptProfileUrl") DO UPDATE SET
@@ -92,6 +92,7 @@ async def _upsert_therapist(pool: asyncpg.Pool, profile: TherapistProfile, embed
                 insurance = EXCLUDED.insurance,
                 telehealth = EXCLUDED.telehealth,
                 "inPerson" = EXCLUDED."inPerson",
+                source = EXCLUDED.source,
                 embedding = EXCLUDED.embedding,
                 "updatedAt" = NOW()
             """,
@@ -111,5 +112,6 @@ async def _upsert_therapist(pool: asyncpg.Pool, profile: TherapistProfile, embed
             normalize_insurance(profile.insurance),
             profile.telehealth,
             profile.in_person,
+            profile.source,
             embedding_str,
         )

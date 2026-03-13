@@ -20,6 +20,7 @@ class TherapistProfile(BaseModel):
     insurance: list[str] = []
     telehealth: bool = False
     in_person: bool = True
+    source: str = "pt"
 
     @field_validator("name")
     @classmethod
