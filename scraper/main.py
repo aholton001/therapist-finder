@@ -15,6 +15,7 @@ from config import settings
 from crawler.browser import create_browser_context
 from crawler.listing_crawler import get_profile_urls_for_city
 from crawler.profile_crawler import scrape_profile
+from models.therapist import TherapistProfile
 from pipeline.embedder import embed_and_upsert
 
 logging.basicConfig(
@@ -39,6 +40,9 @@ DEFAULT_CITIES = [
 ]
 
 
+PROFILE_CONCURRENCY = 5
+
+
 async def scrape_city(state_slug: str, city_slug: str, max_pages: int, pool: asyncpg.Pool) -> None:
     logger.info(f"Starting scrape: {city_slug}, {state_slug}")
 
@@ -52,22 +56,22 @@ async def scrape_city(state_slug: str, city_slug: str, max_pages: int, pool: asy
             )
             logger.info(f"Found {len(profile_urls)} profile URLs for {city_slug}")
 
-            # Step 2: Scrape each profile
-            profiles = []
-            for i, url in enumerate(profile_urls):
-                logger.info(f"Scraping profile {i + 1}/{len(profile_urls)}: {url}")
-                profile = await scrape_profile(context, url)
-                if profile:
-                    profiles.append(profile)
+            # Step 2: Scrape profiles concurrently with a semaphore
+            sem = asyncio.Semaphore(PROFILE_CONCURRENCY)
 
-                # Embed and upsert in batches to avoid memory buildup
-                if len(profiles) >= settings.batch_size:
-                    await embed_and_upsert(profiles, pool)
-                    profiles = []
+            async def bounded_scrape(i: int, url: str) -> TherapistProfile | None:
+                async with sem:
+                    logger.info(f"Scraping profile {i + 1}/{len(profile_urls)}: {url}")
+                    return await scrape_profile(context, url)
 
-            # Flush remaining
-            if profiles:
-                await embed_and_upsert(profiles, pool)
+            results = await asyncio.gather(
+                *[bounded_scrape(i, url) for i, url in enumerate(profile_urls)]
+            )
+            profiles = [p for p in results if p]
+
+            # Step 3: Embed and upsert in batches
+            for i in range(0, len(profiles), settings.batch_size):
+                await embed_and_upsert(profiles[i : i + settings.batch_size], pool)
 
         finally:
             await context.browser.close()

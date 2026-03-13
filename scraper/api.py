@@ -44,7 +44,7 @@ app = FastAPI(lifespan=lifespan)
 class ScrapeRequest(BaseModel):
     state: str  # "ny"
     city: str   # "new-york"
-    max_pages: int = 10
+    max_pages: int = 3
 
 
 class ScrapeResponse(BaseModel):
