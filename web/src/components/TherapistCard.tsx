@@ -38,7 +38,14 @@ export default function TherapistCard({ therapist, userQuery }: Props) {
     similarity,
   } = therapist;
 
-  const matchPercent = Math.round(similarity * 100);
+  // Raw cosine similarity from text-embedding-3-small typically ranges ~0.0 (unrelated)
+  // to ~0.65 (near-identical). Rescale to 0–100% so scores feel intuitive.
+  const SIMILARITY_MIN = 0.0;
+  const SIMILARITY_MAX = 0.65;
+  const matchPercent = Math.min(
+    100,
+    Math.round(((similarity - SIMILARITY_MIN) / (SIMILARITY_MAX - SIMILARITY_MIN)) * 100)
+  );
 
   async function handleWhyMatch() {
     if (showExplanation) {
