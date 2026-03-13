@@ -22,6 +22,7 @@ export default function TherapistCard({ therapist, userQuery }: Props) {
   const [showExplanation, setShowExplanation] = useState(false);
 
   const {
+    id,
     name,
     credentials,
     bio,
@@ -35,8 +36,12 @@ export default function TherapistCard({ therapist, userQuery }: Props) {
     telehealth,
     inPerson,
     ptProfileUrl,
+    source,
     similarity,
   } = therapist;
+
+  const isNppes = source === "nppes";
+  const claimUrl = `/claim?id=${id}&name=${encodeURIComponent(name)}`;
 
   const SIMILARITY_MIN = 0.0;
   const SIMILARITY_MAX = 0.65;
@@ -192,6 +197,20 @@ export default function TherapistCard({ therapist, userQuery }: Props) {
               Insurance: {insurance.slice(0, 3).join(", ")}
               {insurance.length > 3 && ` +${insurance.length - 3} more`}
             </p>
+          )}
+
+          {isNppes && (
+            <div className="mt-4 flex items-center justify-between bg-indigo-50 rounded-xl px-4 py-3">
+              <p className="text-sm text-indigo-700">
+                Are you this therapist? Claim your profile to add your bio and get matched to more clients.
+              </p>
+              <a
+                href={claimUrl}
+                className="ml-4 shrink-0 text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+              >
+                Claim →
+              </a>
+            </div>
           )}
 
           <div className="mt-4 flex items-center gap-4">

@@ -30,9 +30,21 @@ model Therapist {
   source       String   @default("pt")
   scrapedAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  claim        TherapistClaim?
 
   @@index([city, state])
   @@index([zipCode])
+}
+
+model TherapistClaim {
+  id          String    @id @default(cuid())
+  therapistId String    @unique
+  therapist   Therapist @relation(fields: [therapistId], references: [id])
+  email       String
+  token       String    @unique
+  expiresAt   DateTime
+  verifiedAt  DateTime?
+  createdAt   DateTime  @default(now())
 }
 
 model SearchLog {

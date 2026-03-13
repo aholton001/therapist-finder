@@ -18,6 +18,7 @@ export type TherapistResult = {
   insurance: string[];
   telehealth: boolean;
   inPerson: boolean;
+  source: string;
   similarity: number;
 };
 
@@ -68,7 +69,7 @@ export async function searchTherapists(
     SELECT
       id, "ptProfileUrl", name, credentials, bio, "photoUrl",
       city, state, "zipCode", specialties, issues, "therapyTypes",
-      insurance, telehealth, "inPerson",
+      insurance, telehealth, "inPerson", source,
       1 - (embedding <=> ${embeddingStr}::vector) AS similarity
     FROM "Therapist"
     WHERE embedding IS NOT NULL
