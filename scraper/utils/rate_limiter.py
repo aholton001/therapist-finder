@@ -12,12 +12,12 @@ async def polite_delay() -> None:
     await asyncio.sleep(delay)
 
 
-async def navigate_with_retry(page, url: str, wait_selector: str, max_retries: int = 3) -> bool:
+async def navigate_with_retry(page, url: str, wait_selector: str, max_retries: int = 2) -> bool:
     """Navigate to URL and wait for selector, with exponential backoff on failure."""
     for attempt in range(max_retries):
         try:
             await page.goto(url, timeout=30000, wait_until="domcontentloaded")
-            await page.wait_for_selector(wait_selector, timeout=15000)
+            await page.wait_for_selector(wait_selector, timeout=8000)
             return True
         except Exception as e:
             wait_time = (2 ** attempt) + random.uniform(0, 1)
