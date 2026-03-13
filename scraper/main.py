@@ -44,7 +44,7 @@ DEFAULT_CITIES = [
 PROFILE_CONCURRENCY = 3
 
 
-async def scrape_city(state_slug: str, city_slug: str, max_pages: int, pool: asyncpg.Pool) -> None:
+async def scrape_city(state_slug: str, city_slug: str, max_pages: int, pool: asyncpg.Pool, start_page: int = 1) -> None:
     logger.info(f"Starting scrape: {city_slug}, {state_slug}")
 
     async with async_playwright() as playwright:
@@ -53,7 +53,7 @@ async def scrape_city(state_slug: str, city_slug: str, max_pages: int, pool: asy
         try:
             # Step 1: Collect profile URLs
             profile_urls = await get_profile_urls_for_city(
-                context, state_slug, city_slug, max_pages=max_pages
+                context, state_slug, city_slug, max_pages=max_pages, start_page=start_page
             )
             logger.info(f"Found {len(profile_urls)} profile URLs for {city_slug}")
 

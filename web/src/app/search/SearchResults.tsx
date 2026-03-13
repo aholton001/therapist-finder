@@ -29,6 +29,7 @@ export default function SearchResults({ location, insurance, format }: Props) {
   const [insuranceOptions, setInsuranceOptions] = useState<string[]>([]);
   const [enhancedQuery, setEnhancedQuery] = useState<string>("");
   const [scrapePhase, setScrapePhase] = useState<ScrapePhase>({ phase: "idle" });
+  const [loadingMore, setLoadingMore] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -110,9 +111,17 @@ export default function SearchResults({ location, insurance, format }: Props) {
             if (!statusRes.ok) return;
             const status = await statusRes.json();
 
-            if (status.status === "done") {
+            if (status.status === "partial") {
+              const { results: partial } = await runSearch();
+              if (cancelled) return;
+              if (partial.length > 0) {
+                setResults(partial);
+                setScrapePhase({ phase: "idle" });
+                setLoadingMore(true);
+              }
+            } else if (status.status === "done") {
               clearInterval(pollRef.current!);
-              setScrapePhase({ phase: "reloading" });
+              setLoadingMore(false);
               const { results: fresh } = await runSearch();
               if (cancelled) return;
               await fetchInsuranceOptions();
@@ -228,6 +237,16 @@ export default function SearchResults({ location, insurance, format }: Props) {
             currentFormat={sessionFormat ?? null}
           />
         </Suspense>
+
+        {loadingMore && (
+          <div className="flex items-center gap-2 text-sm text-indigo-600 mb-4">
+            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+            </svg>
+            Finding more therapists in the background…
+          </div>
+        )}
 
         {emptyMessage ? (
           <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">

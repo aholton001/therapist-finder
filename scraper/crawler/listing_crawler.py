@@ -12,12 +12,14 @@ async def get_profile_urls_for_city(
     state_slug: str,
     city_slug: str,
     max_pages: int = 10,
+    start_page: int = 1,
 ) -> list[str]:
     """
     Collect therapist profile URLs for a given city.
 
     state_slug: 2-letter state abbreviation e.g. "ny", "ca", "il"
     city_slug:  city slug e.g. "new-york", "los-angeles"
+    start_page: page number to start from (1-indexed)
     """
     profile_urls: list[str] = []
     page = await context.new_page()
@@ -29,7 +31,7 @@ async def get_profile_urls_for_city(
     except Exception:
         pass
 
-    for page_num in range(1, max_pages + 1):
+    for page_num in range(start_page, start_page + max_pages):
         url = f"{PT_BASE}/us/therapists/{state_slug}/{city_slug}"
         if page_num > 1:
             url += f"?page={page_num}"

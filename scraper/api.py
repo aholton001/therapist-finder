@@ -53,7 +53,7 @@ class ScrapeResponse(BaseModel):
 
 
 class JobStatus(BaseModel):
-    status: Literal["pending", "running", "done", "error"]
+    status: Literal["pending", "running", "partial", "done", "error"]
     state: str
     city: str
     count: int | None = None
@@ -68,22 +68,32 @@ def _running_job_for_city(state: str, city: str) -> str | None:
     return None
 
 
+async def _count_city(state: str, city: str) -> int:
+    async with db_pool.acquire() as conn:
+        city_name = city.replace("-", " ")
+        return await conn.fetchval(
+            'SELECT COUNT(*) FROM "Therapist" WHERE city ILIKE $1 AND state ILIKE $2',
+            f"%{city_name}%",
+            state,
+        ) or 0
+
+
 async def _run_scrape(job_id: str, state: str, city: str, max_pages: int) -> None:
     jobs[job_id]["status"] = "running"
     try:
-        await scrape_city(state, city, max_pages, db_pool)
+        # Phase 1: scrape first page and surface results quickly
+        await scrape_city(state, city, max_pages=1, pool=db_pool, start_page=1)
+        jobs[job_id]["status"] = "partial"
+        jobs[job_id]["count"] = await _count_city(state, city)
+        logger.info(f"Job {job_id} partial: {jobs[job_id]['count']} therapists so far")
 
-        # Count results for this city
-        async with db_pool.acquire() as conn:
-            city_name = city.replace("-", " ")
-            count = await conn.fetchval(
-                'SELECT COUNT(*) FROM "Therapist" WHERE city ILIKE $1 AND state ILIKE $2',
-                f"%{city_name}%",
-                state,
-            )
+        # Phase 2: scrape remaining pages in background
+        if max_pages > 1:
+            await scrape_city(state, city, max_pages=max_pages - 1, pool=db_pool, start_page=2)
+
+        jobs[job_id]["count"] = await _count_city(state, city)
         jobs[job_id]["status"] = "done"
-        jobs[job_id]["count"] = count or 0
-        logger.info(f"Job {job_id} done: {count} therapists for {city}, {state}")
+        logger.info(f"Job {job_id} done: {jobs[job_id]['count']} therapists for {city}, {state}")
     except Exception as e:
         logger.error(f"Job {job_id} failed: {e}")
         jobs[job_id]["status"] = "error"
