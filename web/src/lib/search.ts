@@ -24,6 +24,8 @@ export type TherapistResult = {
 export type SearchParams = {
   location: string;
   query: string;
+  insurance?: string | null;
+  sessionFormat?: "in-person" | "telehealth" | null;
   useEnhancement?: boolean;
   limit?: number;
 };
@@ -31,52 +33,57 @@ export type SearchParams = {
 export async function searchTherapists(
   params: SearchParams
 ): Promise<{ results: TherapistResult[]; enhancedQuery: string }> {
-  const { location, query, useEnhancement = true, limit = 20 } = params;
+  const {
+    location,
+    query,
+    insurance,
+    sessionFormat,
+    useEnhancement = true,
+    limit = 20,
+  } = params;
 
   const enhancedQuery = useEnhancement ? await enhanceQuery(query) : query;
   const embedding = await embedText(enhancedQuery);
   const embeddingStr = `[${embedding.join(",")}]`;
 
-  // Parse location: could be "New York, NY" or a zip code
   const isZip = /^\d{5}$/.test(location.trim());
+  const parts = location.split(",").map((s) => s.trim());
+  const city = isZip ? null : parts[0];
+  const state = isZip ? null : (parts[1] ?? null);
+  const zip = isZip ? location.trim() : null;
 
-  let results: TherapistResult[];
+  // Build insurance filter — match if the array contains any element ILIKE the filter
+  const insuranceFilter = insurance ?? null;
+  const telehealthOnly = sessionFormat === "telehealth";
+  const inPersonOnly = sessionFormat === "in-person";
 
-  if (isZip) {
-    results = await prisma.$queryRaw<TherapistResult[]>`
-      SELECT
-        id, "ptProfileUrl", name, credentials, bio, "photoUrl",
-        city, state, "zipCode", specialties, issues, "therapyTypes",
-        insurance, telehealth, "inPerson",
-        1 - (embedding <=> ${embeddingStr}::vector) AS similarity
-      FROM "Therapist"
-      WHERE "zipCode" = ${location.trim()}
-        AND embedding IS NOT NULL
-      ORDER BY embedding <=> ${embeddingStr}::vector
-      LIMIT ${limit}
-    `;
-  } else {
-    // Split "City, ST" or just "City"
-    const parts = location.split(",").map((s) => s.trim());
-    const city = parts[0];
-    const state = parts[1] ?? null;
+  const results = await prisma.$queryRaw<TherapistResult[]>`
+    SELECT
+      id, "ptProfileUrl", name, credentials, bio, "photoUrl",
+      city, state, "zipCode", specialties, issues, "therapyTypes",
+      insurance, telehealth, "inPerson",
+      1 - (embedding <=> ${embeddingStr}::vector) AS similarity
+    FROM "Therapist"
+    WHERE embedding IS NOT NULL
+      AND (
+        (${zip}::text IS NOT NULL AND "zipCode" = ${zip})
+        OR
+        (${city}::text IS NOT NULL AND city ILIKE ${city}
+          AND (${state}::text IS NULL OR state ILIKE ${state}))
+      )
+      AND (
+        ${insuranceFilter}::text IS NULL
+        OR EXISTS (
+          SELECT 1 FROM unnest(insurance) ins
+          WHERE ins ILIKE ${"%" + (insuranceFilter ?? "") + "%"}
+        )
+      )
+      AND (NOT ${telehealthOnly} OR telehealth = true)
+      AND (NOT ${inPersonOnly} OR "inPerson" = true)
+    ORDER BY embedding <=> ${embeddingStr}::vector
+    LIMIT ${limit}
+  `;
 
-    results = await prisma.$queryRaw<TherapistResult[]>`
-      SELECT
-        id, "ptProfileUrl", name, credentials, bio, "photoUrl",
-        city, state, "zipCode", specialties, issues, "therapyTypes",
-        insurance, telehealth, "inPerson",
-        1 - (embedding <=> ${embeddingStr}::vector) AS similarity
-      FROM "Therapist"
-      WHERE city ILIKE ${city}
-        AND (${state}::text IS NULL OR state ILIKE ${state})
-        AND embedding IS NOT NULL
-      ORDER BY embedding <=> ${embeddingStr}::vector
-      LIMIT ${limit}
-    `;
-  }
-
-  // Log search asynchronously (fire and forget)
   prisma.searchLog
     .create({
       data: {
@@ -89,4 +96,29 @@ export async function searchTherapists(
     .catch(() => {});
 
   return { results, enhancedQuery };
+}
+
+/** Pull distinct normalized insurance values for a location to populate the filter dropdown. */
+export async function getInsuranceOptions(location: string): Promise<string[]> {
+  const isZip = /^\d{5}$/.test(location.trim());
+  const parts = location.split(",").map((s) => s.trim());
+  const city = isZip ? null : parts[0];
+  const state = isZip ? null : (parts[1] ?? null);
+  const zip = isZip ? location.trim() : null;
+
+  const rows = await prisma.$queryRaw<{ ins: string }[]>`
+    SELECT DISTINCT unnest(insurance) AS ins
+    FROM "Therapist"
+    WHERE (
+      (${zip}::text IS NOT NULL AND "zipCode" = ${zip})
+      OR
+      (${city}::text IS NOT NULL AND city ILIKE ${city}
+        AND (${state}::text IS NULL OR state ILIKE ${state}))
+    )
+    ORDER BY ins
+  `;
+
+  return rows
+    .map((r) => r.ins)
+    .filter((s) => s && s.length < 60 && !s.startsWith("*") && !s.startsWith("For ") && !s.startsWith("My "));
 }

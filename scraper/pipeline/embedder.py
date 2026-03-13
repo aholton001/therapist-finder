@@ -3,6 +3,7 @@ import asyncpg
 from openai import AsyncOpenAI
 from models.therapist import TherapistProfile
 from config import settings
+from utils.insurance import normalize_insurance
 
 logger = logging.getLogger(__name__)
 openai = AsyncOpenAI(api_key=settings.openai_api_key)
@@ -107,7 +108,7 @@ async def _upsert_therapist(pool: asyncpg.Pool, profile: TherapistProfile, embed
             profile.specialties,
             profile.issues,
             profile.therapy_types,
-            profile.insurance,
+            normalize_insurance(profile.insurance),
             profile.telehealth,
             profile.in_person,
             embedding_str,
