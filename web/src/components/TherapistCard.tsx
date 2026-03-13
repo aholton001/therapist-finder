@@ -10,8 +10,17 @@ type Props = {
   userQuery: string;
 };
 
+type ExplanationState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "done"; text: string }
+  | { status: "error" };
+
 export default function TherapistCard({ therapist, userQuery }: Props) {
   const [showModal, setShowModal] = useState(false);
+  const [explanation, setExplanation] = useState<ExplanationState>({ status: "idle" });
+  const [showExplanation, setShowExplanation] = useState(false);
+
   const {
     name,
     credentials,
@@ -20,6 +29,7 @@ export default function TherapistCard({ therapist, userQuery }: Props) {
     city,
     state,
     specialties,
+    issues,
     therapyTypes,
     insurance,
     telehealth,
@@ -29,6 +39,32 @@ export default function TherapistCard({ therapist, userQuery }: Props) {
   } = therapist;
 
   const matchPercent = Math.round(similarity * 100);
+
+  async function handleWhyMatch() {
+    if (showExplanation) {
+      setShowExplanation(false);
+      return;
+    }
+    setShowExplanation(true);
+    if (explanation.status !== "idle") return;
+
+    setExplanation({ status: "loading" });
+    try {
+      const res = await fetch("/api/match-explanation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userQuery,
+          therapist: { name, bio, specialties, issues, therapyTypes },
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setExplanation({ status: "done", text: data.explanation });
+    } catch {
+      setExplanation({ status: "error" });
+    }
+  }
 
   return (
     <>
@@ -67,9 +103,15 @@ export default function TherapistCard({ therapist, userQuery }: Props) {
               )}
             </div>
             <div className="shrink-0 text-right">
-              <div className="text-sm font-medium text-indigo-600">
+              <button
+                onClick={handleWhyMatch}
+                className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+              >
                 {matchPercent}% match
-              </div>
+                <span className="ml-1 text-indigo-400 text-xs">
+                  {showExplanation ? "▲" : "▼"}
+                </span>
+              </button>
               <div className="flex gap-1 mt-1 justify-end">
                 {inPerson && (
                   <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
@@ -84,6 +126,25 @@ export default function TherapistCard({ therapist, userQuery }: Props) {
               </div>
             </div>
           </div>
+
+          {/* Why this match explanation */}
+          {showExplanation && (
+            <div className="mt-3 px-3 py-2.5 bg-indigo-50 border border-indigo-100 rounded-xl text-sm text-indigo-900">
+              {explanation.status === "loading" && (
+                <span className="flex items-center gap-2 text-indigo-500">
+                  <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                  Analyzing match...
+                </span>
+              )}
+              {explanation.status === "done" && explanation.text}
+              {explanation.status === "error" && (
+                <span className="text-red-500">Couldn't load explanation.</span>
+              )}
+            </div>
+          )}
 
           {bio && (
             <p className="mt-2 text-gray-600 text-sm line-clamp-3">{bio}</p>
