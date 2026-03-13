@@ -189,9 +189,9 @@ export default function TherapistCard({ therapist, userQuery }: Props) {
 
           <div className="mt-4 flex items-center gap-4">
             <a
-              href={ptProfileUrl}
+              href={`https://www.google.com/url?q=${encodeURIComponent(ptProfileUrl)}`}
               target="_blank"
-              rel="noopener noreferrer"
+              rel="noreferrer noopener"
               className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
             >
               View profile
