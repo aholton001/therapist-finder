@@ -8,6 +8,7 @@ Usage:
 import asyncio
 import argparse
 import logging
+import random
 import asyncpg
 from playwright.async_api import async_playwright
 
@@ -40,7 +41,7 @@ DEFAULT_CITIES = [
 ]
 
 
-PROFILE_CONCURRENCY = 5
+PROFILE_CONCURRENCY = 3
 
 
 async def scrape_city(state_slug: str, city_slug: str, max_pages: int, pool: asyncpg.Pool) -> None:
@@ -60,6 +61,10 @@ async def scrape_city(state_slug: str, city_slug: str, max_pages: int, pool: asy
             sem = asyncio.Semaphore(PROFILE_CONCURRENCY)
 
             async def bounded_scrape(i: int, url: str) -> TherapistProfile | None:
+                # Stagger the first batch to avoid simultaneous requests triggering bot detection;
+                # semaphore handles throttling for subsequent workers
+                if i < PROFILE_CONCURRENCY:
+                    await asyncio.sleep(i * random.uniform(0.5, 1.0))
                 async with sem:
                     logger.info(f"Scraping profile {i + 1}/{len(profile_urls)}: {url}")
                     return await scrape_profile(context, url)
