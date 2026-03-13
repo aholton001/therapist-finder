@@ -26,6 +26,7 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/therapist_finder
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      SCRAPER_URL: http://scraper-api:8000
     depends_on:
       postgres:
         condition: service_healthy
@@ -33,6 +34,20 @@ services:
       - ./web:/app
       - /app/node_modules
       - /app/.next
+
+  scraper-api:
+    build:
+      context: ./scraper
+      dockerfile: Dockerfile
+    command: ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/therapist_finder
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   scraper:
     build:

@@ -3,13 +3,18 @@ import { searchTherapists } from "@/lib/search";
 import { questionnaireToQuery, type QuestionnaireData } from "@/lib/types";
 import { z } from "zod";
 
-const FreeformSchema = z.object({
+const FilterSchema = z.object({
+  insurance: z.string().optional(),
+  sessionFormat: z.enum(["in-person", "telehealth"]).optional(),
+});
+
+const FreeformSchema = FilterSchema.extend({
   mode: z.literal("freeform"),
   location: z.string().min(2),
   query: z.string().min(10),
 });
 
-const QuestionnaireSchema = z.object({
+const QuestionnaireSchema = FilterSchema.extend({
   mode: z.literal("questionnaire"),
   location: z.string().min(2),
   questionnaire: z.object({
@@ -52,6 +57,8 @@ export async function POST(request: NextRequest) {
   const { results, enhancedQuery } = await searchTherapists({
     location: data.location,
     query,
+    insurance: data.insurance ?? null,
+    sessionFormat: data.sessionFormat ?? null,
     useEnhancement: true,
   });
 

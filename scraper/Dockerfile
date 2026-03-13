@@ -10,4 +10,4 @@ RUN playwright install chromium
 
 COPY . .
 
-ENTRYPOINT ["python", "main.py"]
+CMD ["python", "main.py"]
