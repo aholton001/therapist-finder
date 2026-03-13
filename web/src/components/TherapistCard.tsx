@@ -38,14 +38,21 @@ export default function TherapistCard({ therapist, userQuery }: Props) {
     similarity,
   } = therapist;
 
-  // Raw cosine similarity from text-embedding-3-small typically ranges ~0.0 (unrelated)
-  // to ~0.65 (near-identical). Rescale to 0–100% so scores feel intuitive.
   const SIMILARITY_MIN = 0.0;
   const SIMILARITY_MAX = 0.65;
   const matchPercent = Math.min(
     100,
     Math.round(((similarity - SIMILARITY_MIN) / (SIMILARITY_MAX - SIMILARITY_MIN)) * 100)
   );
+
+  const matchBucket =
+    matchPercent >= 75
+      ? { label: "Strong Match", className: "bg-green-100 text-green-800" }
+      : matchPercent >= 55
+      ? { label: "Good Match", className: "bg-indigo-100 text-indigo-800" }
+      : matchPercent >= 35
+      ? { label: "Fair Match", className: "bg-amber-100 text-amber-800" }
+      : { label: "Possible Match", className: "bg-gray-100 text-gray-600" };
 
   async function handleWhyMatch() {
     if (showExplanation) {
@@ -112,10 +119,10 @@ export default function TherapistCard({ therapist, userQuery }: Props) {
             <div className="shrink-0 text-right">
               <button
                 onClick={handleWhyMatch}
-                className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-opacity hover:opacity-80 ${matchBucket.className}`}
               >
-                {matchPercent}% match
-                <span className="ml-1 text-indigo-400 text-xs">
+                {matchBucket.label}
+                <span className="text-xs opacity-60">
                   {showExplanation ? "▲" : "▼"}
                 </span>
               </button>
