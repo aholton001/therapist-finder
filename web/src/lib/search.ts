@@ -30,6 +30,13 @@ export type SearchParams = {
   limit?: number;
 };
 
+/** Generate alternate city spelling to handle Saint/St variations. */
+function cityAlternate(city: string): string {
+  if (/\bSaint\b/i.test(city)) return city.replace(/\bSaint\b/gi, "St.");
+  if (/\bSt\.\s/i.test(city) || /\bSt\b/i.test(city)) return city.replace(/\bSt\.?\b/gi, "Saint");
+  return city;
+}
+
 export async function searchTherapists(
   params: SearchParams
 ): Promise<{ results: TherapistResult[]; enhancedQuery: string }> {
@@ -49,10 +56,10 @@ export async function searchTherapists(
   const isZip = /^\d{5}$/.test(location.trim());
   const parts = location.split(",").map((s) => s.trim());
   const city = isZip ? null : parts[0];
+  const cityAlt = city ? cityAlternate(city) : null;
   const state = isZip ? null : (parts[1] ?? null);
   const zip = isZip ? location.trim() : null;
 
-  // Build insurance filter — match if the array contains any element ILIKE the filter
   const insuranceFilter = insurance ?? null;
   const telehealthOnly = sessionFormat === "telehealth";
   const inPersonOnly = sessionFormat === "in-person";
@@ -68,7 +75,8 @@ export async function searchTherapists(
       AND (
         (${zip}::text IS NOT NULL AND "zipCode" = ${zip})
         OR
-        (${city}::text IS NOT NULL AND city ILIKE ${city}
+        (${city}::text IS NOT NULL
+          AND (city ILIKE ${city} OR city ILIKE ${cityAlt})
           AND (${state}::text IS NULL OR state ILIKE ${state}))
       )
       AND (
@@ -103,6 +111,7 @@ export async function getInsuranceOptions(location: string): Promise<string[]> {
   const isZip = /^\d{5}$/.test(location.trim());
   const parts = location.split(",").map((s) => s.trim());
   const city = isZip ? null : parts[0];
+  const cityAlt = city ? cityAlternate(city) : null;
   const state = isZip ? null : (parts[1] ?? null);
   const zip = isZip ? location.trim() : null;
 
@@ -112,7 +121,8 @@ export async function getInsuranceOptions(location: string): Promise<string[]> {
     WHERE (
       (${zip}::text IS NOT NULL AND "zipCode" = ${zip})
       OR
-      (${city}::text IS NOT NULL AND city ILIKE ${city}
+      (${city}::text IS NOT NULL
+        AND (city ILIKE ${city} OR city ILIKE ${cityAlt})
         AND (${state}::text IS NULL OR state ILIKE ${state}))
     )
     ORDER BY ins
