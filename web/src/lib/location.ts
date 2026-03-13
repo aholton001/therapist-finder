@@ -1,3 +1,5 @@
+import zipcodes from "zipcodes";
+
 const STATE_ABBRS = new Set([
   "al","ak","az","ar","ca","co","ct","de","fl","ga","hi","id",
   "il","in","ia","ks","ky","la","me","md","ma","mi","mn","ms",
@@ -28,8 +30,12 @@ export function normalizeLocation(
 ): { state: string; city: string } | null {
   const trimmed = location.trim();
 
-  // ZIP codes — can't derive a city slug
-  if (/^\d{5}$/.test(trimmed)) return null;
+  // Resolve ZIP codes via static lookup
+  if (/^\d{5}$/.test(trimmed)) {
+    const info = zipcodes.lookup(trimmed);
+    if (!info) return null;
+    return normalizeLocation(`${info.city}, ${info.state}`);
+  }
 
   const commaIdx = trimmed.indexOf(",");
   if (commaIdx === -1) return null;
@@ -40,7 +46,6 @@ export function normalizeLocation(
   const citySlug = toSlug(rawCity);
   if (!citySlug) return null;
 
-  // Extract 2-letter abbreviation ("NY" or "NY 10001" → "ny")
   const stateMatch = rawState.toLowerCase().match(/^([a-z]{2})\b/);
   if (!stateMatch || !STATE_ABBRS.has(stateMatch[1])) return null;
 
