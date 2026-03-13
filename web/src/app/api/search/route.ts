@@ -3,6 +3,8 @@ import { searchTherapists } from "@/lib/search";
 import { questionnaireToQuery, type QuestionnaireData } from "@/lib/types";
 import { z } from "zod";
 
+export const dynamic = "force-dynamic";
+
 const FilterSchema = z.object({
   insurance: z.string().optional(),
   sessionFormat: z.enum(["in-person", "telehealth"]).optional(),

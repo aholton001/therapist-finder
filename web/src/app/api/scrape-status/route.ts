@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 const SCRAPER_URL = process.env.SCRAPER_URL ?? "http://localhost:8000";
 
 export async function GET(request: NextRequest) {

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
+export const dynamic = "force-dynamic";
+
 const SCRAPER_URL = process.env.SCRAPER_URL ?? "http://localhost:8000";
 
 const RequestSchema = z.object({
