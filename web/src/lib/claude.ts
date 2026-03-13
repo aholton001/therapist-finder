@@ -1,6 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+let _anthropic: Anthropic | null = null;
+function getAnthropic() {
+  if (!_anthropic) _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return _anthropic;
+}
 
 const SYSTEM_PROMPT = `You are a clinical intake specialist helping match patients to therapists.
 
@@ -16,7 +20,7 @@ Rules:
 
 export async function enhanceQuery(rawQuery: string): Promise<string> {
   try {
-    const message = await anthropic.messages.create({
+    const message = await getAnthropic().messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 300,
       system: SYSTEM_PROMPT,
