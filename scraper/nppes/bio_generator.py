@@ -16,6 +16,25 @@ TAXONOMY_CODE_TO_DESC = {
     "2084P0804X": "addiction psychiatry",
 }
 
+# Maps taxonomy practice area → person label for use in "is a ___" sentences
+TAXONOMY_DESC_TO_PROFESSION = {
+    "counseling": "counselor",
+    "mental health counseling": "mental health counselor",
+    "addiction and substance use counseling": "addiction counselor",
+    "professional counseling": "professional counselor",
+    "school counseling": "school counselor",
+    "psychology": "psychologist",
+    "clinical psychology": "clinical psychologist",
+    "counseling psychology": "counseling psychologist",
+    "family psychology": "family psychologist",
+    "addiction psychology": "psychologist",
+    "clinical social work": "clinical social worker",
+    "social work": "social worker",
+    "marriage and family therapy": "marriage and family therapist",
+    "psychiatry": "psychiatrist",
+    "addiction psychiatry": "psychiatrist",
+}
+
 CREDENTIAL_TO_TYPE = {
     "LCSW": "Licensed Clinical Social Worker",
     "LMFT": "Licensed Marriage and Family Therapist",
@@ -34,13 +53,22 @@ CREDENTIAL_TO_TYPE = {
 }
 
 
-def _get_provider_type(credential: str | None, primary_code: str) -> str:
+def _clean_city(city: str) -> str:
+    """Fix consecutive duplicate words e.g. 'New New' → skip (return empty)."""
+    words = city.split()
+    for i in range(len(words) - 1):
+        if words[i].lower() == words[i + 1].lower():
+            return ""
+    return city
+
+
+def _get_provider_type(credential: str | None, primary_desc: str) -> str:
     if credential:
         cred_upper = credential.upper().replace(".", "")
         for key, label in CREDENTIAL_TO_TYPE.items():
             if key in cred_upper:
                 return label
-    return TAXONOMY_CODE_TO_DESC.get(primary_code, "mental health professional").title()
+    return TAXONOMY_DESC_TO_PROFESSION.get(primary_desc, "mental health professional")
 
 
 def generate_bio(provider: dict) -> str:
@@ -54,7 +82,7 @@ def generate_bio(provider: dict) -> str:
         (a for a in provider.get("addresses", []) if a.get("address_purpose") == "LOCATION"),
         (provider.get("addresses") or [{}])[0],
     )
-    city = location_addr.get("city", "").strip().title()
+    city = _clean_city(location_addr.get("city", "").strip().title())
     state = location_addr.get("state", "").strip().upper()
     location_str = f"in {city}, {state}" if city and state else f"in {state}" if state else ""
 
@@ -69,7 +97,7 @@ def generate_bio(provider: dict) -> str:
         if not t.get("primary") and TAXONOMY_CODE_TO_DESC.get(t.get("code", ""))
     } - {primary_desc})
 
-    provider_type = _get_provider_type(credential, primary_code)
+    provider_type = _get_provider_type(credential, primary_desc)
     cred_str = f", {credential}" if credential else ""
 
     bio = (
@@ -100,7 +128,8 @@ def provider_to_profile(provider: dict) -> dict | None:
         (a for a in provider.get("addresses", []) if a.get("address_purpose") == "LOCATION"),
         (provider.get("addresses") or [{}])[0],
     )
-    city = location_addr.get("city", "").strip().title() or None
+    raw_city = location_addr.get("city", "").strip().title()
+    city = _clean_city(raw_city) or None
     state = location_addr.get("state", "").strip().upper() or None
     zip_code = (location_addr.get("postal_code", "") or "")[:5] or None
 
